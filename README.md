@@ -7,6 +7,3 @@
 
 - 逐字双语歌词
 <img width="1417" height="1417" alt="image" src="https://github.com/user-attachments/assets/a625f2e1-fa79-4015-a88c-9c4a5b8396e9" />
-
-- 逐行歌词
-<img width="720" height="720" alt="image" src="https://github.com/user-attachments/assets/d4683cde-ae0d-4f40-bbf9-d51d589ca359" />
