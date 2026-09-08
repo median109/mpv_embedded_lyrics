@@ -83,10 +83,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             -- 检查行尾是否有结束时间戳，形如 [00:27.990]
             local end_m, end_s, end_ms = rest:match("%[(%d+):(%d+)%.(%d+)%]$")
             local end_ms_val = nil
+            local clean_rest = rest
             if end_m then
                 end_ms_val = time_to_ms(end_m, end_s, end_ms)
-                -- 裁剪掉末尾的时间戳文本
-                rest = rest:gsub("%[(%d+):(%d+)%.(%d+)%]$", "")
+                -- 裁剪掉末尾的时间戳文本，得到纯文本/逐字文本内容
+                clean_rest = rest:gsub("%[(%d+):(%d+)%.(%d+)%]$", "")
             else
                 end_ms_val = start_ms + 4000 -- 默认单行持续 4 秒
             end
@@ -98,7 +99,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             -- 提取行内所有标记组
             local last_pos = 1
-            for word, n_m, n_s, n_ms in rest:gmatch("(.-)%[(%d+):(%d+)%.(%d+)%]") do
+            for word, n_m, n_s, n_ms in clean_rest:gmatch("(.-)%[(%d+):(%d+)%.(%d+)%]") do
                 has_k_tag = true
                 local next_time = time_to_ms(n_m, n_s, n_ms)
                 local duration_cs = math.max(0, math.floor((next_time - current_time) / 10))
@@ -107,21 +108,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 last_pos = last_pos + #word + #string.format("[%s:%s.%s]", n_m, n_s, n_ms)
             end
 
-            -- 拼接行尾剩余文本（仅当包含逐字时间戳时才生成 \kf 标记）
-            local tail_word = rest:sub(last_pos)
-            if #tail_word > 0 and has_k_tag then
-                local remaining_cs = math.max(0, math.floor((end_ms_val - current_time) / 10))
-                ass_text = ass_text .. string.format("{\\kf%d}%s", remaining_cs, tail_word)
-            end
-
-            -- 如果没有任何逐字标签，生成标准行字幕
-            if ass_text == "" then
-                ass_text = rest
+            -- 拼接处理
+            if has_k_tag then
+                -- 逐字模式：拼接行尾剩余文本并加上最后的 \kf 标记
+                local tail_word = clean_rest:sub(last_pos)
+                if #tail_word > 0 then
+                    local remaining_cs = math.max(0, math.floor((end_ms_val - current_time) / 10))
+                    ass_text = ass_text .. string.format("{\\kf%d}%s", remaining_cs, tail_word)
+                end
+            else
+                -- 普通逐行模式（如中文翻译）：直接保留去除尾部时间戳后的完整文本
+                ass_text = clean_rest
             end
 
             local start_str = ms_to_ass_time(start_ms)
             local end_str = ms_to_ass_time(end_ms_val)
-            table.insert(events, string.format("Dialogue: 0,%s,%s,Default,,0,0,0,,%s", start_str, end_str, ass_text))
+            
+            -- 只有文本不为空才插入
+            if #ass_text > 0 then
+                table.insert(events, string.format("Dialogue: 0,%s,%s,Default,,0,0,0,,%s", start_str, end_str, ass_text))
+            end
         end
     end
 
