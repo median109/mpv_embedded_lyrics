@@ -94,10 +94,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             -- 处理逐字时间戳 (例如: Gee [00:28.247]gee [00:28.537]...)
             local current_time = start_ms
             local ass_text = ""
+            local has_k_tag = false
             
             -- 提取行内所有标记组
             local last_pos = 1
             for word, n_m, n_s, n_ms in rest:gmatch("(.-)%[(%d+):(%d+)%.(%d+)%]") do
+                has_k_tag = true
                 local next_time = time_to_ms(n_m, n_s, n_ms)
                 local duration_cs = math.max(0, math.floor((next_time - current_time) / 10))
                 ass_text = ass_text .. string.format("{\\kf%d}%s", duration_cs, word)
@@ -105,9 +107,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 last_pos = last_pos + #word + #string.format("[%s:%s.%s]", n_m, n_s, n_ms)
             end
 
-            -- 拼接行尾剩余文本
+            -- 拼接行尾剩余文本（仅当包含逐字时间戳时才生成 \kf 标记）
             local tail_word = rest:sub(last_pos)
-            if #tail_word > 0 then
+            if #tail_word > 0 and has_k_tag then
                 local remaining_cs = math.max(0, math.floor((end_ms_val - current_time) / 10))
                 ass_text = ass_text .. string.format("{\\kf%d}%s", remaining_cs, tail_word)
             end
